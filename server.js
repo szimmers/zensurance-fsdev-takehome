@@ -3,6 +3,7 @@ const Ajv = require('ajv');
 const validator = new Ajv();
 
 const {MaterialTypes, FabricColors} = require('./imports/consts');
+const {TShirtValidationSchema} = require('./validation/validationSchemas');
 
 const app = express();
 const bodyParser = require('body-parser');
@@ -10,30 +11,6 @@ const bodyParser = require('body-parser');
 const port = process.env.PORT || 3001;
 
 const jsonParser = bodyParser.json();
-
-/**
- * schema for validating tshirt orders
- * @type {{properties: {material: {enum: string[]}, color: {enum: string[]}}}}
- */
-const tshirtSchema = {
-    required: ["material", "color"],
-    additionalProperties: false,
-    properties: {
-        material: {
-            type: "string",
-            enum: ["COTTON_LIGHT", "COTTON_HEAVY"]
-        },
-        color: {
-            type: "string",
-            enum: ["BLACK", "WHITE", "GREEN", "RED"]
-        },
-        qty: {
-            type: "integer",
-            minimum: 1,
-            maximum: 99
-        }
-    }
-};
 
 function getTShirtCost(material, color) {
     let cost = 16.95;
@@ -49,8 +26,8 @@ function getTShirtCost(material, color) {
     return cost;
 }
 
-app.post('/api/tshirt', jsonParser, function (req, res) {
-    let valid = validator.validate(tshirtSchema, req.body);
+app.post('/api/cartitem/tshirt', jsonParser, function (req, res) {
+    let valid = validator.validate(TShirtValidationSchema, req.body);
 
     if (!valid) {
         validator.errors.forEach(e => {
@@ -70,7 +47,7 @@ app.post('/api/tshirt', jsonParser, function (req, res) {
     let totalCost = costPerUnit * qty;
 
     res.json({
-        "totalCost": totalCost
+        cartItemCosts: totalCost
     });
 
 });
