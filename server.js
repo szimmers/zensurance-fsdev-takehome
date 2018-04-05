@@ -1,6 +1,6 @@
 const express = require('express');
 const Ajv = require('ajv');
-const ajv = new Ajv();
+const validator = new Ajv();
 
 const {MaterialTypes, FabricColors} = require('./imports/consts');
 
@@ -16,32 +16,44 @@ const jsonParser = bodyParser.json();
  * @type {{properties: {material: {enum: string[]}, color: {enum: string[]}}}}
  */
 const tshirtSchema = {
-    "properties": {
-        "material": { "enum": ["COTTON_LIGHT", "COTTON_HEAVY"] },
-        "color": { "enum": ["BLACK", "WHITE", "GREEN", "RED"] }
+    required: ["material", "color"],
+    additionalProperties: false,
+    properties: {
+        material: {
+            type: "string",
+            enum: ["COTTON_LIGHT", "COTTON_HEAVY"]
+        },
+        color: {
+            type: "string",
+            enum: ["BLACK", "WHITE", "GREEN", "RED"]
+        },
+        qty: {
+            type: "integer",
+            minimum: 1,
+            maximum: 99
+        }
     }
 };
 
-app.post('/api/tshirt', jsonParser, function (req, res) {
-    let material = req.body.material;
-    let color = req.body.color;
-
-    /*
-    console.log("material:", material);
-    console.log("color:", color);
+function getTShirtCost(material, color) {
+    let cost = 16.95;
 
     if (material === MaterialTypes.HeavyCotton) {
-        console.log('found heavy');
+        cost += 3;
     }
-    else if (material === MaterialTypes.LightCotton) {
-        console.log('found light');
-    }
-    */
 
-    let valid = ajv.validate(tshirtSchema, req.body);
+    if (color === FabricColors.Green || color === FabricColors.Red) {
+        cost += 2;
+    }
+
+    return cost;
+}
+
+app.post('/api/tshirt', jsonParser, function (req, res) {
+    let valid = validator.validate(tshirtSchema, req.body);
 
     if (!valid) {
-        ajv.errors.forEach(e => {
+        validator.errors.forEach(e => {
             let msg = `property <${e.dataPath}>: ${e.message}`;
             console.error(msg);
         });
@@ -50,7 +62,16 @@ app.post('/api/tshirt', jsonParser, function (req, res) {
         return res.status(400).send({error: msg});
     }
 
-    res.json({"yup":"yup"})
+    let material = req.body.material;
+    let color = req.body.color;
+    let qty = req.body.qty || 1;
+
+    let costPerUnit = getTShirtCost(material, color);
+    let totalCost = costPerUnit * qty;
+
+    res.json({
+        "totalCost": totalCost
+    });
 
 });
 
