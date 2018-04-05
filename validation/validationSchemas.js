@@ -14,12 +14,30 @@ const TShirtValidationSchema = {
             type: "string",
             enum: ["BLACK", "WHITE", "GREEN", "RED"]
         },
+        text: {
+            type: "string",
+            minLength: 1,
+            maxLength: 8
+        },
+        textColor: {
+            type: "string",
+            enum: ["BLACK", "WHITE", "GREEN", "RED"]
+        },
         qty: {
             type: "integer",
             minimum: 1,
             maximum: 99
         }
-    }
+    },
+    if: {
+        properties: {
+            text: {
+                minLength: 1
+            },
+        },
+        required: ["text"],
+    },
+    then: {required: ["textColor"]},
 };
 
 /**

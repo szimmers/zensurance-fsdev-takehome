@@ -28,9 +28,11 @@ function makeKey(form, material, color) {
  * @param form
  * @param material
  * @param color
+ * @param text
+ * @param textColor
  * @param qty
  */
-function addCartItem(form, material, color, qty) {
+function addCartItem(form, material, color, text, textColor, qty) {
     let key = makeKey(form, material, color);
 
     if (cart[key]) {
@@ -41,9 +43,32 @@ function addCartItem(form, material, color, qty) {
             form,
             material,
             color,
+            text,
+            textColor,
             qty
         };
     }
+}
+
+/**
+ * convenience function for adding t-shirts to the cart
+ * @param material
+ * @param color
+ * @param text
+ * @param textColor
+ * @param qty
+ */
+function addTShirtToCart(material, color, text, textColor, qty) {
+    addCartItem(ItemForm.TShirt, material, color, text, textColor, qty);
+}
+
+/**
+ * convenience function for adding sweaters to the cart
+ * @param color
+ * @param qty
+ */
+function addSweaterToCart(color, qty) {
+    addCartItem(ItemForm.Sweater, MaterialTypes.HeavyCotton, color, undefined, undefined, qty);
 }
 
 /**
@@ -84,18 +109,27 @@ function reduceQtyCartItems(form, material, color, qtyToDelete) {
  * be in the db.
  * @param material
  * @param color
+ * @param text
+ * @param textColor
  * @returns {number}
  */
-function getTShirtCost(material, color) {
+function getTShirtCost(material, color, text, textColor) {
     // black or white cost
     let cost = 16.95;
 
+    // heavy cotton costs more
     if (material === MaterialTypes.HeavyCotton) {
         cost += 3;
     }
 
+    // "fancy" colors cost more
     if (color === FabricColors.Green || color === FabricColors.Red) {
         cost += 2;
+    }
+
+    // text is free if it's in black or white, otherwise it's extra
+    if (text && (textColor !== FabricColors.Black) && (textColor !== FabricColors.White)) {
+        cost += 3;
     }
 
     return cost;
@@ -129,7 +163,7 @@ const PriceCart = function(req, res) {
 
     for (const [key, value] of Object.entries(cart)) {
         if (value.form === ItemForm.TShirt) {
-            let costPerUnit = getTShirtCost(value.material, value.color);
+            let costPerUnit = getTShirtCost(value.material, value.color, value.text, value.textColor);
             cartCost += costPerUnit * value.qty;
         }
         else if (value.form === ItemForm.Sweater) {
@@ -154,6 +188,7 @@ const AddTShirt = function(req, res) {
     let valid = validator.validate(TShirtValidationSchema, req.body);
 
     if (!valid) {
+        console.error(validator.errors);
         validator.errors.forEach(e => {
             let msg = `property <${e.dataPath}>: ${e.message}`;
             console.error(msg);
@@ -167,10 +202,14 @@ const AddTShirt = function(req, res) {
     let color = req.body.color;
     let qty = req.body.qty || 1;
 
-    let costPerUnit = getTShirtCost(material, color);
+    // text is optional, but its color is required if it exists
+    let text = req.body.text;
+    let textColor = req.body.textColor;
+
+    let costPerUnit = getTShirtCost(material, color, text, textColor);
     let totalCost = costPerUnit * qty;
 
-    addCartItem(ItemForm.TShirt, material, color, qty);
+    addTShirtToCart(material, color, text, textColor, qty);
 
     res.json({
         cartItemCosts: totalCost
@@ -235,7 +274,7 @@ const AddSweater = function(req, res) {
     let costPerUnit = getSweaterCost(color);
     let totalCost = costPerUnit * qty;
 
-    addCartItem(ItemForm.Sweater, MaterialTypes.HeavyCotton, color, qty);
+    addSweaterToCart(color, qty);
 
     res.json({
         cartItemCosts: totalCost
