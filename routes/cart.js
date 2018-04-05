@@ -1,7 +1,7 @@
 const Ajv = require('ajv');
 const validator = new Ajv();
 
-const {TShirtValidationSchema} = require('../validation/validationSchemas');
+const {TShirtValidationSchema, SweaterValidationSchema} = require('../validation/validationSchemas');
 const {MaterialTypes, FabricColors, ItemForm} = require('../imports/consts');
 
 /**
@@ -79,7 +79,15 @@ function reduceQtyCartItems(form, material, color, qtyToDelete) {
     return true;
 }
 
+/**
+ * gets the cost of the configured t-shirt. in a real system, this would probably
+ * be in the db.
+ * @param material
+ * @param color
+ * @returns {number}
+ */
 function getTShirtCost(material, color) {
+    // black or white cost
     let cost = 16.95;
 
     if (material === MaterialTypes.HeavyCotton) {
@@ -93,6 +101,55 @@ function getTShirtCost(material, color) {
     return cost;
 }
 
+/**
+ * gets the cost of the configured sweater. in a real system, this would probably
+ * be in the db.
+ * @param color
+ * @returns {number}
+ */
+function getSweaterCost(color) {
+    // black or white cost
+    let cost = 28.95;
+
+    if (color === FabricColors.Pink || color === FabricColors.Yellow) {
+        cost += 4;
+    }
+
+    return cost;
+}
+
+/**
+ * gets the total price of all items in the cart
+ * @param req
+ * @param res
+ * @constructor
+ */
+const PriceCart = function(req, res) {
+    let cartCost = 0;
+
+    for (const [key, value] of Object.entries(cart)) {
+        if (value.form === ItemForm.TShirt) {
+            let costPerUnit = getTShirtCost(value.material, value.color);
+            cartCost += costPerUnit * value.qty;
+        }
+        else if (value.form === ItemForm.Sweater) {
+            let costPerUnit = getSweaterCost(value.color);
+            cartCost += costPerUnit * value.qty;
+        }
+    }
+
+    res.json({
+        cartCost: cartCost
+    });
+};
+
+/**
+ * adds some quantity of t-shirts to the cart
+ * @param req
+ * @param res
+ * @returns {*}
+ * @constructor
+ */
 const AddTShirt = function(req, res) {
     let valid = validator.validate(TShirtValidationSchema, req.body);
 
@@ -114,13 +171,19 @@ const AddTShirt = function(req, res) {
     let totalCost = costPerUnit * qty;
 
     addCartItem(ItemForm.TShirt, material, color, qty);
-    console.log(cart)
 
     res.json({
         cartItemCosts: totalCost
     });
 };
 
+/**
+ * deletes some quantity of t-shirts from the cart
+ * @param req
+ * @param res
+ * @returns {*}
+ * @constructor
+ */
 const DeleteTShirt = function(req, res) {
     let valid = validator.validate(TShirtValidationSchema, req.body);
 
@@ -146,4 +209,68 @@ const DeleteTShirt = function(req, res) {
     res.end();
 };
 
-module.exports = {AddTShirt, DeleteTShirt};
+/**
+ * adds some quantity of sweaters to the cart.
+ * @param req
+ * @param res
+ * @returns {*}
+ * @constructor
+ */
+const AddSweater = function(req, res) {
+    let valid = validator.validate(SweaterValidationSchema, req.body);
+
+    if (!valid) {
+        validator.errors.forEach(e => {
+            let msg = `property <${e.dataPath}>: ${e.message}`;
+            console.error(msg);
+        });
+
+        let msg = 'Cannot add sweater, invalid configuration';
+        return res.status(400).send({error: msg});
+    }
+
+    let color = req.body.color;
+    let qty = req.body.qty || 1;
+
+    let costPerUnit = getSweaterCost(color);
+    let totalCost = costPerUnit * qty;
+
+    addCartItem(ItemForm.Sweater, MaterialTypes.HeavyCotton, color, qty);
+
+    res.json({
+        cartItemCosts: totalCost
+    });
+};
+
+/**
+ * deletes some quantity of sweaters from the cart.
+ * @param req
+ * @param res
+ * @returns {*}
+ * @constructor
+ */
+const DeleteSweater = function(req, res) {
+    let valid = validator.validate(SweaterValidationSchema, req.body);
+
+    if (!valid) {
+        validator.errors.forEach(e => {
+            let msg = `property <${e.dataPath}>: ${e.message}`;
+            console.error(msg);
+        });
+
+        let msg = 'Cannot remove sweater(s), invalid configuration';
+        return res.status(400).send({error: msg});
+    }
+
+    let color = req.body.color;
+    let qty = req.body.qty || 1;
+
+    if (!reduceQtyCartItems(ItemForm.Sweater, MaterialTypes.HeavyCotton, color, qty)) {
+        let msg = 'Cannot remove sweater(s), there are not that many in the cart';
+        return res.status(400).send({error: msg});
+    }
+
+    res.end();
+};
+
+module.exports = {AddTShirt, DeleteTShirt, PriceCart, AddSweater, DeleteSweater};
