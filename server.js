@@ -13,13 +13,13 @@ const jsonParser = bodyParser.json();
 //------------------------------------------------------------------------------
 
 // gets the total cart price
-app.get('/api/cart/price', jsonParser, PriceCart);
+app.get('/api/cart/price', PriceCart);
 
 // gets the cart contents
-app.get('/api/cart', jsonParser, CartContents);
+app.get('/api/cart', CartContents);
 
 // empties the cart
-app.delete('/api/cart', jsonParser, EmptyCart);
+app.delete('/api/cart', EmptyCart);
 
 //------------------------------------------------------------------------------
 // item operations
