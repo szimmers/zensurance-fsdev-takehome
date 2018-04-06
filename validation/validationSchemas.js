@@ -60,4 +60,20 @@ const SweaterValidationSchema = {
     }
 };
 
-module.exports = {TShirtValidationSchema, SweaterValidationSchema};
+/**
+ * schema for setting a new quantity on a line item
+ * @type {{required: string[], additionalProperties: boolean, properties: {qty: {type: string, minimum: number, maximum: number}}}}
+ */
+const CartItemUpdateQuantitySchema = {
+    required: ["qty"],
+    additionalProperties: false,
+    properties: {
+        qty: {
+            type: "integer",
+            minimum: 1,
+            maximum: 99
+        }
+    }
+};
+
+module.exports = {TShirtValidationSchema, SweaterValidationSchema, CartItemUpdateQuantitySchema};

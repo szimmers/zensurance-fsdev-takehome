@@ -3,31 +3,28 @@ const uuidv4 = require('uuid/v4');
 const Ajv = require('ajv');
 const validator = new Ajv();
 
-const {TShirtValidationSchema, SweaterValidationSchema} = require('../validation/validationSchemas');
+const {TShirtValidationSchema, SweaterValidationSchema, CartItemUpdateQuantitySchema} = require('../validation/validationSchemas');
 const {MaterialTypes, FabricColors, ItemForm} = require('../imports/consts');
 
 /**
  * let's make an in-memory cart. we'll assume a single user so any cart items belong to
  * our single user. the cart is not persisted, it will go away w/ a server reboot. this will
  * give us enough functionality to test adding to the cart, deleting from it, and pricing it.
- * @type {{}}
+ * @type {Array}
  */
 let cart = [];
 
 /**
- * our cart items need a key. the key is a way of grouping like items together so we can
- * keep a quantity associated. any cart item that is customized (i.e. with text) will automatically
- * get its own entry in the cart. even 2 identical items with the same text.
- *
- * the value will be info about that cart item.
+ * dynamically create model numbers based on what the user is ordering. in a real system, these
+ * would likely be pre-defined.
  *
  * @param form
  * @param material
  * @param color
  * @returns {string}
  */
-function makeKey(form, material, color) {
-   return `${form}|${material}|${color}`;
+function makeModelNumber(form, material, color) {
+   return `${form}-${material}-${color}`;
 }
 
 /**
@@ -41,8 +38,10 @@ function makeKey(form, material, color) {
  * @param unitCost
  */
 function addCartItem(form, material, color, text, textColor, qty, unitCost) {
-    let model = makeKey(form, material, color);
+    let model = makeModelNumber(form, material, color);
 
+    // look for existing items based on the model number. but we'll keep customized
+    // items as their own cart line item, so be sure not to match if text exists.
     let existingItem = _.find(cart, (c) => {
         return (c.model === model) && !c.text;
     });
@@ -65,26 +64,47 @@ function addCartItem(form, material, color, text, textColor, qty, unitCost) {
 
         cart.push(newItem);
     }
+}
 
-    // try to find an existing item with the same key, *unless* we have a custom item.
-    // in that case, it gets its own entry in the cart.
-    /*
-    if (cart[key] && !text) {
-        cart[key].qty += qty;
+/**
+ * given an item id, removes the item from the cart
+ * @param id
+ * @returns {boolean}   true if the item was removed, false if it was not found
+ */
+function removeCartItem(id) {
+    let existingItem = _.find(cart, (c) => {
+        return (c.id === id);
+    });
+
+    if (existingItem) {
+        cart = _.filter(cart, (c) => {
+            return c.id !== id;
+        });
+
+        return true;
     }
-    else {
-        cart[key] = {
-            id: uuidv4(),
-            form,
-            material,
-            color,
-            text,
-            textColor,
-            qty,
-            unitCost
-        };
+
+    return false;
+}
+
+/**
+ * given an item id, update its quantity in the cart
+ * @param id
+ * @param qty
+ * @returns {boolean}   true if the item was found, false otherwise
+ */
+function updateQuantity(id, qty) {
+    let existingItem = _.find(cart, (c) => {
+        return (c.id === id);
+    });
+
+    if (existingItem) {
+        existingItem.qty = qty;
+
+        return true;
     }
-    */
+
+    return false;
 }
 
 /**
@@ -108,39 +128,6 @@ function addTShirtToCart(material, color, text, textColor, qty, unitCost) {
  */
 function addSweaterToCart(color, qty, unitCost) {
     addCartItem(ItemForm.Sweater, MaterialTypes.HeavyCotton, color, undefined, undefined, qty, unitCost);
-}
-
-/**
- * reduces the quantity of cart items. will delete the line item from the cart if the qty
- * goes to zero.
- * @param form
- * @param material
- * @param color
- * @param qtyToDelete
- * @returns {boolean} true if the operation worked, false if the item didn't exist in the cart or the
- * specified qty was greater than the number of items in the cart.
- */
-function reduceQtyCartItems(form, material, color, qtyToDelete) {
-    let key = makeKey(form, material, color);
-
-    if (!cart[key]) {
-        return false;
-    }
-
-    let existingQty = cart[key].qty;
-
-    if (qtyToDelete > existingQty) {
-        return false;
-    }
-
-    if (qtyToDelete === existingQty) {
-        delete cart[key];
-    }
-    else {
-        cart[key].qty -= qtyToDelete;
-    }
-
-    return true;
 }
 
 /**
@@ -261,38 +248,6 @@ const AddTShirt = function(req, res) {
 };
 
 /**
- * deletes some quantity of t-shirts from the cart
- * @param req
- * @param res
- * @returns {*}
- * @constructor
- */
-const DeleteTShirt = function(req, res) {
-    let valid = validator.validate(TShirtValidationSchema, req.body);
-
-    if (!valid) {
-        validator.errors.forEach(e => {
-            let msg = `property <${e.dataPath}>: ${e.message}`;
-            console.error(msg);
-        });
-
-        let msg = 'Cannot remove t-shirt(s), invalid configuration';
-        return res.status(400).send({error: msg});
-    }
-
-    let material = req.body.material;
-    let color = req.body.color;
-    let qty = req.body.qty || 1;
-
-    if (!reduceQtyCartItems(ItemForm.TShirt, material, color, qty)) {
-        let msg = 'Cannot remove t-shirt(s), there are not that many in the cart';
-        return res.status(400).send({error: msg});
-    }
-
-    res.end();
-};
-
-/**
  * adds some quantity of sweaters to the cart.
  * @param req
  * @param res
@@ -326,14 +281,14 @@ const AddSweater = function(req, res) {
 };
 
 /**
- * deletes some quantity of sweaters from the cart.
+ * given an id and a quantity, update the cart to that new quantity
  * @param req
  * @param res
  * @returns {*}
  * @constructor
  */
-const DeleteSweater = function(req, res) {
-    let valid = validator.validate(SweaterValidationSchema, req.body);
+const UpdateCartItemQuantityById = function(req, res) {
+    let valid = validator.validate(CartItemUpdateQuantitySchema, req.body);
 
     if (!valid) {
         validator.errors.forEach(e => {
@@ -341,19 +296,47 @@ const DeleteSweater = function(req, res) {
             console.error(msg);
         });
 
-        let msg = 'Cannot remove sweater(s), invalid configuration';
+        let msg = 'Cannot update quantity, invalid configuration';
         return res.status(400).send({error: msg});
     }
 
-    let color = req.body.color;
-    let qty = req.body.qty || 1;
-
-    if (!reduceQtyCartItems(ItemForm.Sweater, MaterialTypes.HeavyCotton, color, qty)) {
-        let msg = 'Cannot remove sweater(s), there are not that many in the cart';
+    if (updateQuantity(req.params.id, req.body.qty)) {
+        res.end();
+    }
+    else {
+        let msg = 'Cannot update quantity, item id not found';
         return res.status(400).send({error: msg});
     }
+};
+
+/**
+ * allows user to delete a line item from the cart, by its id. all quantities of that
+ * item are deleted.
+ * @param req
+ * @param res
+ * @returns {*}
+ * @constructor
+ */
+const DeleteCartItemById = function(req, res) {
+    if (removeCartItem(req.params.id)) {
+        res.end();
+    }
+    else {
+        let msg = 'Cannot remove item(s), item id not found';
+        return res.status(400).send({error: msg});
+    }
+};
+
+/**
+ * clears out the cart
+ * @param req
+ * @param res
+ * @constructor
+ */
+const EmptyCart = function(req, res) {
+    cart = [];
 
     res.end();
 };
 
-module.exports = {AddTShirt, DeleteTShirt, PriceCart, AddSweater, DeleteSweater, CartContents};
+module.exports = {AddTShirt, PriceCart, AddSweater, CartContents, EmptyCart, DeleteCartItemById, UpdateCartItemQuantityById};
