@@ -1,3 +1,5 @@
+const _ = require('underscore');
+const uuidv4 = require('uuid/v4');
 const Ajv = require('ajv');
 const validator = new Ajv();
 
@@ -10,10 +12,15 @@ const {MaterialTypes, FabricColors, ItemForm} = require('../imports/consts');
  * give us enough functionality to test adding to the cart, deleting from it, and pricing it.
  * @type {{}}
  */
-let cart = {};
+let cart = [];
 
 /**
- * our cart items need a key. the value will be the quantity of that item.
+ * our cart items need a key. the key is a way of grouping like items together so we can
+ * keep a quantity associated. any cart item that is customized (i.e. with text) will automatically
+ * get its own entry in the cart. even 2 identical items with the same text.
+ *
+ * the value will be info about that cart item.
+ *
  * @param form
  * @param material
  * @param color
@@ -34,13 +41,40 @@ function makeKey(form, material, color) {
  * @param unitCost
  */
 function addCartItem(form, material, color, text, textColor, qty, unitCost) {
-    let key = makeKey(form, material, color);
+    let model = makeKey(form, material, color);
 
-    if (cart[key]) {
+    let existingItem = _.find(cart, (c) => {
+        return (c.model === model) && !c.text;
+    });
+
+    if (existingItem) {
+        existingItem.qty += qty;
+    }
+    else {
+        let newItem = {
+            id: uuidv4(),
+            model,
+            form,
+            material,
+            color,
+            text,
+            textColor,
+            qty,
+            unitCost
+        };
+
+        cart.push(newItem);
+    }
+
+    // try to find an existing item with the same key, *unless* we have a custom item.
+    // in that case, it gets its own entry in the cart.
+    /*
+    if (cart[key] && !text) {
         cart[key].qty += qty;
     }
     else {
         cart[key] = {
+            id: uuidv4(),
             form,
             material,
             color,
@@ -50,6 +84,7 @@ function addCartItem(form, material, color, text, textColor, qty, unitCost) {
             unitCost
         };
     }
+    */
 }
 
 /**
