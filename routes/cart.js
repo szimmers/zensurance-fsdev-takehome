@@ -178,14 +178,7 @@ const PriceCart = function(req, res) {
     let cartCost = 0;
 
     for (const [key, value] of Object.entries(cart)) {
-        if (value.form === ItemForm.TShirt) {
-            let costPerUnit = getTShirtCost(value.material, value.color, value.text, value.textColor);
-            cartCost += costPerUnit * value.qty;
-        }
-        else if (value.form === ItemForm.Sweater) {
-            let costPerUnit = getSweaterCost(value.color);
-            cartCost += costPerUnit * value.qty;
-        }
+        cartCost += (value.unitCost * value.qty);
     }
 
     res.json({
