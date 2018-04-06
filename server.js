@@ -1,5 +1,5 @@
 const express = require('express');
-const {AddTShirt, DeleteTShirt, PriceCart, AddSweater, DeleteSweater} = require('./routes/cart');
+const {AddTShirt, DeleteTShirt, PriceCart, AddSweater, DeleteSweater, CartContents} = require('./routes/cart');
 
 const app = express();
 const bodyParser = require('body-parser');
@@ -9,7 +9,10 @@ const port = process.env.PORT || 3001;
 const jsonParser = bodyParser.json();
 
 // gets the total cart price
-app.get('/api/cart', jsonParser, PriceCart);
+app.get('/api/cart/price', jsonParser, PriceCart);
+
+// gets the cart contents
+app.get('/api/cart', jsonParser, CartContents);
 
 // allows the user to add and remove t-shirts to/from the cart
 app.post('/api/cartitem/tshirt', jsonParser, AddTShirt);

@@ -31,8 +31,9 @@ function makeKey(form, material, color) {
  * @param text
  * @param textColor
  * @param qty
+ * @param unitCost
  */
-function addCartItem(form, material, color, text, textColor, qty) {
+function addCartItem(form, material, color, text, textColor, qty, unitCost) {
     let key = makeKey(form, material, color);
 
     if (cart[key]) {
@@ -45,7 +46,8 @@ function addCartItem(form, material, color, text, textColor, qty) {
             color,
             text,
             textColor,
-            qty
+            qty,
+            unitCost
         };
     }
 }
@@ -57,18 +59,20 @@ function addCartItem(form, material, color, text, textColor, qty) {
  * @param text
  * @param textColor
  * @param qty
+ * @param unitCost
  */
-function addTShirtToCart(material, color, text, textColor, qty) {
-    addCartItem(ItemForm.TShirt, material, color, text, textColor, qty);
+function addTShirtToCart(material, color, text, textColor, qty, unitCost) {
+    addCartItem(ItemForm.TShirt, material, color, text, textColor, qty, unitCost);
 }
 
 /**
  * convenience function for adding sweaters to the cart
  * @param color
  * @param qty
+ * @param unitCost
  */
-function addSweaterToCart(color, qty) {
-    addCartItem(ItemForm.Sweater, MaterialTypes.HeavyCotton, color, undefined, undefined, qty);
+function addSweaterToCart(color, qty, unitCost) {
+    addCartItem(ItemForm.Sweater, MaterialTypes.HeavyCotton, color, undefined, undefined, qty, unitCost);
 }
 
 /**
@@ -153,6 +157,18 @@ function getSweaterCost(color) {
 }
 
 /**
+ * gets the contents of the cart
+ * @param req
+ * @param res
+ * @constructor
+ */
+const CartContents = function (req, res) {
+    res.json({
+        cartItems: cart
+    });
+};
+
+/**
  * gets the total price of all items in the cart
  * @param req
  * @param res
@@ -209,7 +225,7 @@ const AddTShirt = function(req, res) {
     let costPerUnit = getTShirtCost(material, color, text, textColor);
     let totalCost = costPerUnit * qty;
 
-    addTShirtToCart(material, color, text, textColor, qty);
+    addTShirtToCart(material, color, text, textColor, qty, costPerUnit);
 
     res.json({
         cartItemCosts: totalCost
@@ -274,7 +290,7 @@ const AddSweater = function(req, res) {
     let costPerUnit = getSweaterCost(color);
     let totalCost = costPerUnit * qty;
 
-    addSweaterToCart(color, qty);
+    addSweaterToCart(color, qty, costPerUnit);
 
     res.json({
         cartItemCosts: totalCost
@@ -312,4 +328,4 @@ const DeleteSweater = function(req, res) {
     res.end();
 };
 
-module.exports = {AddTShirt, DeleteTShirt, PriceCart, AddSweater, DeleteSweater};
+module.exports = {AddTShirt, DeleteTShirt, PriceCart, AddSweater, DeleteSweater, CartContents};
