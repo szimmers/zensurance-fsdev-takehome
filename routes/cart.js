@@ -1,9 +1,8 @@
 const _ = require('underscore');
 const uuidv4 = require('uuid/v4');
-const Ajv = require('ajv');
-const validator = new Ajv();
 
-const {TShirtValidationSchema, SweaterValidationSchema, CartItemUpdateQuantitySchema} = require('../validation/validationSchemas');
+const {TShirtValidationSchema, SweaterValidationSchema, CartItemUpdateQuantitySchema, ItemIdSchema} = require('../validation/validationSchemas');
+const {validateAgainstSchema} = require('../validation/validationUtils');
 const {MaterialTypes, FabricColors, ItemForm} = require('../imports/consts');
 
 /**
@@ -24,7 +23,7 @@ let cart = [];
  * @returns {string}
  */
 function makeModelNumber(form, material, color) {
-   return `${form}-${material}-${color}`;
+	return `${form}-${material}-${color}`;
 }
 
 /**
@@ -38,32 +37,32 @@ function makeModelNumber(form, material, color) {
  * @param unitCost
  */
 function addCartItem(form, material, color, text, textColor, qty, unitCost) {
-    let model = makeModelNumber(form, material, color);
+	let model = makeModelNumber(form, material, color);
 
-    // look for existing items based on the model number. but we'll keep customized
-    // items as their own cart line item, so be sure not to match if text exists.
-    let existingItem = _.find(cart, (c) => {
-        return (c.model === model) && !c.text;
-    });
+	// look for existing items based on the model number. but we'll keep customized
+	// items as their own cart line item, so be sure not to match if text exists.
+	let existingItem = _.find(cart, (c) => {
+		return (c.model === model) && !c.text;
+	});
 
-    if (existingItem) {
-        existingItem.qty += qty;
-    }
-    else {
-        let newItem = {
-            id: uuidv4(),
-            model,
-            form,
-            material,
-            color,
-            text,
-            textColor,
-            qty,
-            unitCost
-        };
+	if (existingItem) {
+		existingItem.qty += qty;
+	}
+	else {
+		let newItem = {
+			id: uuidv4(),
+			model,
+			form,
+			material,
+			color,
+			text,
+			textColor,
+			qty,
+			unitCost
+		};
 
-        cart.push(newItem);
-    }
+		cart.push(newItem);
+	}
 }
 
 /**
@@ -72,19 +71,19 @@ function addCartItem(form, material, color, text, textColor, qty, unitCost) {
  * @returns {boolean}   true if the item was removed, false if it was not found
  */
 function removeCartItem(id) {
-    let existingItem = _.find(cart, (c) => {
-        return (c.id === id);
-    });
+	let existingItem = _.find(cart, (c) => {
+		return (c.id === id);
+	});
 
-    if (existingItem) {
-        cart = _.filter(cart, (c) => {
-            return c.id !== id;
-        });
+	if (existingItem) {
+		cart = _.filter(cart, (c) => {
+			return c.id !== id;
+		});
 
-        return true;
-    }
+		return true;
+	}
 
-    return false;
+	return false;
 }
 
 /**
@@ -94,17 +93,17 @@ function removeCartItem(id) {
  * @returns {boolean}   true if the item was found, false otherwise
  */
 function updateQuantity(id, qty) {
-    let existingItem = _.find(cart, (c) => {
-        return (c.id === id);
-    });
+	let existingItem = _.find(cart, (c) => {
+		return (c.id === id);
+	});
 
-    if (existingItem) {
-        existingItem.qty = qty;
+	if (existingItem) {
+		existingItem.qty = qty;
 
-        return true;
-    }
+		return true;
+	}
 
-    return false;
+	return false;
 }
 
 /**
@@ -117,7 +116,7 @@ function updateQuantity(id, qty) {
  * @param unitCost
  */
 function addTShirtToCart(material, color, text, textColor, qty, unitCost) {
-    addCartItem(ItemForm.TShirt, material, color, text, textColor, qty, unitCost);
+	addCartItem(ItemForm.TShirt, material, color, text, textColor, qty, unitCost);
 }
 
 /**
@@ -127,7 +126,7 @@ function addTShirtToCart(material, color, text, textColor, qty, unitCost) {
  * @param unitCost
  */
 function addSweaterToCart(color, qty, unitCost) {
-    addCartItem(ItemForm.Sweater, MaterialTypes.HeavyCotton, color, undefined, undefined, qty, unitCost);
+	addCartItem(ItemForm.Sweater, MaterialTypes.HeavyCotton, color, undefined, undefined, qty, unitCost);
 }
 
 /**
@@ -140,25 +139,25 @@ function addSweaterToCart(color, qty, unitCost) {
  * @returns {number}
  */
 function getTShirtCost(material, color, text, textColor) {
-    // black or white cost
-    let cost = 16.95;
+	// black or white cost
+	let cost = 16.95;
 
-    // heavy cotton costs more
-    if (material === MaterialTypes.HeavyCotton) {
-        cost += 3;
-    }
+	// heavy cotton costs more
+	if (material === MaterialTypes.HeavyCotton) {
+		cost += 3;
+	}
 
-    // "fancy" colors cost more
-    if (color === FabricColors.Green || color === FabricColors.Red) {
-        cost += 2;
-    }
+	// "fancy" colors cost more
+	if (color === FabricColors.Green || color === FabricColors.Red) {
+		cost += 2;
+	}
 
-    // text is free if it's in black or white, otherwise it's extra
-    if (text && (textColor !== FabricColors.Black) && (textColor !== FabricColors.White)) {
-        cost += 3;
-    }
+	// text is free if it's in black or white, otherwise it's extra
+	if (text && (textColor !== FabricColors.Black) && (textColor !== FabricColors.White)) {
+		cost += 3;
+	}
 
-    return cost;
+	return cost;
 }
 
 /**
@@ -168,14 +167,14 @@ function getTShirtCost(material, color, text, textColor) {
  * @returns {number}
  */
 function getSweaterCost(color) {
-    // black or white cost
-    let cost = 28.95;
+	// black or white cost
+	let cost = 28.95;
 
-    if (color === FabricColors.Pink || color === FabricColors.Yellow) {
-        cost += 4;
-    }
+	if (color === FabricColors.Pink || color === FabricColors.Yellow) {
+		cost += 4;
+	}
 
-    return cost;
+	return cost;
 }
 
 /**
@@ -185,9 +184,9 @@ function getSweaterCost(color) {
  * @constructor
  */
 const CartContents = function (req, res) {
-    res.json({
-        cartItems: cart
-    });
+	res.json({
+		cartItems: cart
+	});
 };
 
 /**
@@ -196,16 +195,16 @@ const CartContents = function (req, res) {
  * @param res
  * @constructor
  */
-const PriceCart = function(req, res) {
-    let cartCost = 0;
+const PriceCart = function (req, res) {
+	let cartCost = 0;
 
-    for (const [key, value] of Object.entries(cart)) {
-        cartCost += (value.unitCost * value.qty);
-    }
+	for (const [key, value] of Object.entries(cart)) {
+		cartCost += (value.unitCost * value.qty);
+	}
 
-    res.json({
-        cartCost: cartCost
-    });
+	res.json({
+		cartCost: cartCost
+	});
 };
 
 /**
@@ -215,36 +214,28 @@ const PriceCart = function(req, res) {
  * @returns {*}
  * @constructor
  */
-const AddTShirt = function(req, res) {
-    let valid = validator.validate(TShirtValidationSchema, req.body);
+const AddTShirt = function (req, res) {
+	if (!validateAgainstSchema(TShirtValidationSchema, req.body)) {
+		let msg = 'Cannot add t-shirt, invalid configuration';
+		return res.status(400).send({error: msg});
+	}
 
-    if (!valid) {
-        console.error(validator.errors);
-        validator.errors.forEach(e => {
-            let msg = `property <${e.dataPath}>: ${e.message}`;
-            console.error(msg);
-        });
+	let material = req.body.material;
+	let color = req.body.color;
+	let qty = req.body.qty || 1;
 
-        let msg = 'Cannot add t-shirt, invalid configuration';
-        return res.status(400).send({error: msg});
-    }
+	// text is optional, but its color is required if it exists
+	let text = req.body.text;
+	let textColor = req.body.textColor;
 
-    let material = req.body.material;
-    let color = req.body.color;
-    let qty = req.body.qty || 1;
+	let costPerUnit = getTShirtCost(material, color, text, textColor);
+	let totalCost = costPerUnit * qty;
 
-    // text is optional, but its color is required if it exists
-    let text = req.body.text;
-    let textColor = req.body.textColor;
+	addTShirtToCart(material, color, text, textColor, qty, costPerUnit);
 
-    let costPerUnit = getTShirtCost(material, color, text, textColor);
-    let totalCost = costPerUnit * qty;
-
-    addTShirtToCart(material, color, text, textColor, qty, costPerUnit);
-
-    res.json({
-        cartItemCosts: totalCost
-    });
+	res.json({
+		cartItemCosts: totalCost
+	});
 };
 
 /**
@@ -254,30 +245,23 @@ const AddTShirt = function(req, res) {
  * @returns {*}
  * @constructor
  */
-const AddSweater = function(req, res) {
-    let valid = validator.validate(SweaterValidationSchema, req.body);
+const AddSweater = function (req, res) {
+	if (!validateAgainstSchema(SweaterValidationSchema, req.body)) {
+		let msg = 'Cannot add sweater, invalid configuration';
+		return res.status(400).send({error: msg});
+	}
 
-    if (!valid) {
-        validator.errors.forEach(e => {
-            let msg = `property <${e.dataPath}>: ${e.message}`;
-            console.error(msg);
-        });
+	let color = req.body.color;
+	let qty = req.body.qty || 1;
 
-        let msg = 'Cannot add sweater, invalid configuration';
-        return res.status(400).send({error: msg});
-    }
+	let costPerUnit = getSweaterCost(color);
+	let totalCost = costPerUnit * qty;
 
-    let color = req.body.color;
-    let qty = req.body.qty || 1;
+	addSweaterToCart(color, qty, costPerUnit);
 
-    let costPerUnit = getSweaterCost(color);
-    let totalCost = costPerUnit * qty;
-
-    addSweaterToCart(color, qty, costPerUnit);
-
-    res.json({
-        cartItemCosts: totalCost
-    });
+	res.json({
+		cartItemCosts: totalCost
+	});
 };
 
 /**
@@ -287,26 +271,29 @@ const AddSweater = function(req, res) {
  * @returns {*}
  * @constructor
  */
-const UpdateCartItemQuantityById = function(req, res) {
-    let valid = validator.validate(CartItemUpdateQuantitySchema, req.body);
+const UpdateCartItemQuantityById = function (req, res) {
+	// the quantity is in the body
+	if (!validateAgainstSchema(CartItemUpdateQuantitySchema, req.body)) {
+		let msg = 'Cannot update quantity, invalid configuration';
+		return res.status(400).send({error: msg});
+	}
 
-    if (!valid) {
-        validator.errors.forEach(e => {
-            let msg = `property <${e.dataPath}>: ${e.message}`;
-            console.error(msg);
-        });
+	// the id is in the params
+	if (!validateAgainstSchema(ItemIdSchema, req.params)) {
+		let msg = 'Cannot update quantity, invalid configuration';
+		return res.status(400).send({error: msg});
+	}
 
-        let msg = 'Cannot update quantity, invalid configuration';
-        return res.status(400).send({error: msg});
-    }
+	let itemId = req.params.id;
+	let qty = req.body.qty;
 
-    if (updateQuantity(req.params.id, req.body.qty)) {
-        res.end();
-    }
-    else {
-        let msg = 'Cannot update quantity, item id not found';
-        return res.status(400).send({error: msg});
-    }
+	if (updateQuantity(itemId, qty)) {
+		res.end();
+	}
+	else {
+		let msg = 'Cannot update quantity, item id not found';
+		return res.status(400).send({error: msg});
+	}
 };
 
 /**
@@ -317,14 +304,21 @@ const UpdateCartItemQuantityById = function(req, res) {
  * @returns {*}
  * @constructor
  */
-const DeleteCartItemById = function(req, res) {
-    if (removeCartItem(req.params.id)) {
-        res.end();
-    }
-    else {
-        let msg = 'Cannot remove item(s), item id not found';
-        return res.status(400).send({error: msg});
-    }
+const DeleteCartItemById = function (req, res) {
+	if (!validateAgainstSchema(ItemIdSchema, req.params)) {
+		let msg = 'Cannot remove item(s), invalid configuration';
+		return res.status(400).send({error: msg});
+	}
+
+	let itemId = req.params.id;
+
+	if (removeCartItem(itemId)) {
+		res.end();
+	}
+	else {
+		let msg = 'Cannot remove item(s), item id not found';
+		return res.status(400).send({error: msg});
+	}
 };
 
 /**
@@ -333,10 +327,18 @@ const DeleteCartItemById = function(req, res) {
  * @param res
  * @constructor
  */
-const EmptyCart = function(req, res) {
-    cart = [];
+const EmptyCart = function (req, res) {
+	cart = [];
 
-    res.end();
+	res.end();
 };
 
-module.exports = {AddTShirt, PriceCart, AddSweater, CartContents, EmptyCart, DeleteCartItemById, UpdateCartItemQuantityById};
+module.exports = {
+	AddTShirt,
+	PriceCart,
+	AddSweater,
+	CartContents,
+	EmptyCart,
+	DeleteCartItemById,
+	UpdateCartItemQuantityById
+};

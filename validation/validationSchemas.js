@@ -76,4 +76,20 @@ const CartItemUpdateQuantitySchema = {
     }
 };
 
-module.exports = {TShirtValidationSchema, SweaterValidationSchema, CartItemUpdateQuantitySchema};
+/**
+ * schema for the ids assigned in the cart. they're always 36 chars.
+ * @type {{required: string[], additionalProperties: boolean, properties: {id: {type: string, minLength: number, maxLength: number}}}}
+ */
+const ItemIdSchema = {
+    required: ["id"],
+    additionalProperties: false,
+    properties: {
+        id: {
+            type: "string",
+            minLength: 36,
+            maxLength: 36
+        }
+    }
+};
+
+module.exports = {TShirtValidationSchema, SweaterValidationSchema, CartItemUpdateQuantitySchema, ItemIdSchema};
